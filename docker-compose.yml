@@ -1,0 +1,82 @@
+version: '3.3'
+
+# Networks --------------------------------------------------------------------
+
+# networks:
+#   default:
+#     external:
+#       name: devtest-proxy
+
+# Services --------------------------------------------------------------------
+
+services:
+
+  # -- MySQL
+
+  db-01:
+    image: mysql:5.7
+    container_name: db_01
+    ports:
+      - '3311:3306'
+    volumes:
+      - .db:/var/lib/mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+
+  db-02:
+    image: mysql:5.7
+    container_name: db_02
+    ports:
+      - '3312:3306'
+    volumes:
+      - .db2:/var/lib/mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB2_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB2_DATABASE}
+      MYSQL_USER: ${DB2_USERNAME}
+      MYSQL_PASSWORD: ${DB2_PASSWORD}
+
+  # -- FPM
+
+  php-fpm:
+    container_name: fpm_01
+    build:
+      context: ./.config
+      dockerfile: php-fpm-7.2.dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db-01
+      - db-02
+    expose:
+      - 9000
+    volumes:
+      - ./:/var/www
+
+  # -- Web
+
+  web:
+    image: nginx:latest
+    container_name: web_01
+    ports:
+      - '8088:80'
+    restart: unless-stopped
+    depends_on:
+      - php-fpm
+      - db-01
+      - db-02
+    volumes:
+      - ./.config/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./.logs:/var/log/nginx
+      - ./:/var/www
+
+# Volumes ---------------------------------------------------------------------
+
+volumes:
+  .db-01:
+  .db-02:
+#   webapp:
